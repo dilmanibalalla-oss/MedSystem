@@ -1,9 +1,19 @@
 {
   "name": "helio-practice",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
     "install:all": "npm install && npm install --prefix server && npm install --prefix client"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "mongoose": "^8.19.2"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

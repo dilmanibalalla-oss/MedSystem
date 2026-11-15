@@ -36,7 +36,12 @@ const STARTER = [
 export async function seedMedicines() {
   const count = await Medicine.countDocuments();
   if (count > 0) return;
-  await Medicine.insertMany(
-    STARTER.map(([name, strength, form]) => ({ name, strength, form }))
-  );
+  try {
+    await Medicine.insertMany(
+      STARTER.map(([name, strength, form]) => ({ name, strength, form }))
+    );
+  } catch (error) {
+    if (error.code === 11000) return;
+    throw error;
+  }
 }

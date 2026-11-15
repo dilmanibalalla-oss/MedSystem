@@ -34,4 +34,4 @@ const patientSchema = new mongoose.Schema(
 
 patientSchema.index({ name: 1 });
 
-export default mongoose.model('Patient', patientSchema);
+export default mongoose.models.Patient || mongoose.model('Patient', patientSchema);

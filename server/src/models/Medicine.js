@@ -11,4 +11,4 @@ const medicineSchema = new mongoose.Schema(
 
 medicineSchema.index({ name: 1, strength: 1, form: 1 }, { unique: true });
 
-export default mongoose.model('Medicine', medicineSchema);
+export default mongoose.models.Medicine || mongoose.model('Medicine', medicineSchema);
