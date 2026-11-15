@@ -6,8 +6,10 @@ export default defineConfig({
   server: {
     port: 5175,
     strictPort: true,
-    proxy: {
-      '/api': 'http://localhost:5000',
-    },
+    proxy: process.env.VERCEL
+      ? undefined
+      : {
+          '/api': 'http://localhost:5000',
+        },
   },
 });
