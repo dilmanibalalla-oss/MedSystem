@@ -475,9 +475,13 @@ label, .field-label { display: grid; gap: 6px; font-size: 0.92rem; }
 .clinical-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 12px;
+  gap: 22px 48px;
+  margin-top: 16px;
 }
+
+.rx-read .visit-kicker { margin-top: 14px; }
+.rx-read .visit-kicker:first-child { margin-top: 0; }
+.treatment-list li + li { border-top: 1px solid var(--line); margin-top: 8px; }
 
 .medicine-form {
   grid-template-columns: 1.4fr 0.8fr 0.8fr auto;

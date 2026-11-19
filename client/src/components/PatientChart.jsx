@@ -238,14 +238,14 @@ export function PatientChart({ patient, medicines, doctors, onClose, onCheckIn, 
                 </>
               ) : (
                 <div className="clinical-grid">
-                  <p>
-                    <span className="visit-kicker">Symptoms</span>
-                    {visit.symptoms || 'None recorded'}
-                  </p>
-                  <p>
-                    <span className="visit-kicker">Diagnosis</span>
-                    {visit.diagnosis || 'None recorded'}
-                  </p>
+                  <div>
+                    <p className="visit-kicker">Symptoms</p>
+                    <p>{visit.symptoms || 'None recorded'}</p>
+                  </div>
+                  <div>
+                    <p className="visit-kicker">Diagnosis</p>
+                    <p>{visit.diagnosis || 'None recorded'}</p>
+                  </div>
                 </div>
               )}
               {visit.treatments.length === 0 ? (
@@ -254,10 +254,12 @@ export function PatientChart({ patient, medicines, doctors, onClose, onCheckIn, 
                 <ul className="treatment-list">
                   {visit.treatments.map((treatment) => (
                     <li key={treatment._id}>
-                      <div>
+                      <div className="rx-read">
+                        <p className="visit-kicker">Medicine</p>
                         <strong>{treatmentLabel(treatment)}</strong>
                         {treatment.quantity ? <p>Amount: {treatment.quantity}</p> : null}
-                        {treatment.notes ? <p>{treatment.notes}</p> : null}
+                        <p className="visit-kicker">Instructions</p>
+                        <p>{treatment.notes || 'None'}</p>
                       </div>
                       <button type="button" className="text-btn danger-text" onClick={() => removeTreatment(treatment._id)}>
                         Remove
