@@ -1,25 +1,13 @@
-import { treatmentLines } from '../format';
+import { latestVisitField } from '../format';
 
 const COLUMNS = [
   ['name', 'Name'],
   ['age', 'Age'],
   ['address', 'Address'],
   ['visitCount', 'Visits'],
-  ['allergies', 'Allergy'],
-  ['treatments', 'Past treatment'],
+  ['symptoms', 'Symptoms'],
+  ['diagnosis', 'Diagnosis'],
 ];
-
-function Summary({ items }) {
-  if (!items.length) return <span className="muted">None</span>;
-  const shown = items.slice(0, 2);
-  const extra = items.length - shown.length;
-  return (
-    <span title={items.join(', ')}>
-      {shown.join(', ')}
-      {extra > 0 ? ` +${extra}` : ''}
-    </span>
-  );
-}
 
 export function PatientTable({
   patients,
@@ -42,7 +30,7 @@ export function PatientTable({
       <p className="empty">
         {query
           ? `No charts match “${query}”.`
-          : 'No patients yet. Add a chart, then select it when they come in. Each selection records a visit.'}
+          : 'No patients yet. Add a chart, then open it to see that patient only.'}
       </p>
     );
   }
@@ -92,13 +80,23 @@ export function PatientTable({
                 <td className="num">
                   <span className="visit-stamp">{recording ? '…' : patient.visitCount}</span>
                 </td>
-                <td>
-                  <Summary items={patient.allergies} />
+                <td className="address-cell" title={latestVisitField(patient, 'symptoms')}>
+                  {latestVisitField(patient, 'symptoms') || <span className="muted">None</span>}
                 </td>
-                <td>
-                  <Summary items={treatmentLines(patient)} />
+                <td className="address-cell" title={latestVisitField(patient, 'diagnosis')}>
+                  {latestVisitField(patient, 'diagnosis') || <span className="muted">None</span>}
                 </td>
                 <td className="row-actions">
+                  <button
+                    type="button"
+                    className="text-btn"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onOpen(patient);
+                    }}
+                  >
+                    {recording ? 'Opening…' : 'View'}
+                  </button>
                   <button
                     type="button"
                     className="text-btn"

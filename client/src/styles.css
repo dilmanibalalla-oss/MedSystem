@@ -382,6 +382,25 @@ label, .field-label { display: grid; gap: 6px; font-size: 0.92rem; }
   box-shadow: -20px 0 50px rgba(22, 34, 32, 0.12);
 }
 
+.chart-page {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+}
+
+.visit-card {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-2);
+}
+
+.visit-card .stack { margin-top: 12px; }
+
 .chart-top { margin-bottom: 8px; }
 
 .facts {
@@ -433,7 +452,32 @@ label, .field-label { display: grid; gap: 6px; font-size: 0.92rem; }
 
 .treatment-list p { color: var(--ink-soft); margin-top: 4px; }
 
-.chart-footer { margin-top: 22px; justify-content: flex-start; }
+.chart-footer { margin-top: 22px; justify-content: flex-start; flex-wrap: wrap; align-items: end; }
+.chart-footer label { min-width: min(280px, 100%); }
+
+.doctor-form { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.doctor-form .check-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  align-self: end;
+}
+.doctor-form .medicine-actions { align-self: end; }
+
+.rx-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(110px, 0.6fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.clinical-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
 
 .medicine-form {
   grid-template-columns: 1.4fr 0.8fr 0.8fr auto;
@@ -468,5 +512,6 @@ label, .field-label { display: grid; gap: 6px; font-size: 0.92rem; }
   .rail-stats { grid-template-columns: repeat(3, 1fr); margin-top: 0; }
   .stage-head { flex-direction: column; align-items: flex-start; }
   .medicine-form { grid-template-columns: 1fr; }
+  .rx-line, .clinical-grid { grid-template-columns: 1fr; }
   h1 { font-size: 2rem; }
 }

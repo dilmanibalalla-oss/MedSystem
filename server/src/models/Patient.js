@@ -7,6 +7,7 @@ const treatmentSchema = new mongoose.Schema(
     strength: { type: String, default: '' },
     form: { type: String, default: '' },
     notes: { type: String, default: '' },
+    quantity: { type: String, default: '' },
     recordedAt: { type: Date, default: Date.now },
   },
   { _id: true }
@@ -15,6 +16,10 @@ const treatmentSchema = new mongoose.Schema(
 const visitSchema = new mongoose.Schema(
   {
     visitedAt: { type: Date, default: Date.now },
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' },
+    doctorName: { type: String, default: '' },
+    symptoms: { type: String, default: '' },
+    diagnosis: { type: String, default: '' },
     treatments: { type: [treatmentSchema], default: [] },
   },
   { _id: true }

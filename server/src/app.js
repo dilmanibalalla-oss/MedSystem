@@ -2,8 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import patientsRouter from './routes/patients.js';
 import medicinesRouter from './routes/medicines.js';
+import doctorsRouter from './routes/doctors.js';
 import Patient from './models/Patient.js';
 import Medicine from './models/Medicine.js';
+import Doctor from './models/Doctor.js';
 import { connectDb } from './db.js';
 
 const app = express();
@@ -37,20 +39,23 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/stats', async (_req, res) => {
-  const [patients, medicines, visits] = await Promise.all([
+  const [patients, medicines, doctors, visits] = await Promise.all([
     Patient.countDocuments(),
     Medicine.countDocuments(),
+    Doctor.countDocuments(),
     Patient.aggregate([{ $group: { _id: null, total: { $sum: '$visitCount' } } }]),
   ]);
   res.json({
     patients,
     medicines,
+    doctors,
     visits: visits[0]?.total || 0,
   });
 });
 
 app.use('/api/patients', patientsRouter);
 app.use('/api/medicines', medicinesRouter);
+app.use('/api/doctors', doctorsRouter);
 
 app.use((error, _req, res, _next) => {
   console.error(error);

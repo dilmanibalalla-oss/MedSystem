@@ -28,6 +28,11 @@ export function treatmentLabel(treatment) {
   return [treatment.medicineName, treatment.strength, treatment.form].filter(Boolean).join(' · ');
 }
 
+export function latestVisitField(patient, key) {
+  const visit = patient.visits?.[patient.visits.length - 1];
+  return String(visit?.[key] || '').trim();
+}
+
 export function treatmentLines(patient) {
   const lines = [];
   for (let index = patient.visits.length - 1; index >= 0; index -= 1) {

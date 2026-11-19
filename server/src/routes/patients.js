@@ -2,6 +2,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import Patient from '../models/Patient.js';
 import Medicine from '../models/Medicine.js';
+import Doctor from '../models/Doctor.js';
 import { cleanText, escapeRegex, parseAge, parseAllergies } from '../validate.js';
 
 const router = Router();
@@ -23,6 +24,8 @@ router.get('/', async (req, res) => {
       { 'visits.treatments.strength': regex },
       { 'visits.treatments.notes': regex },
       { 'visits.treatments.form': regex },
+      { 'visits.symptoms': regex },
+      { 'visits.diagnosis': regex },
     ];
     if (/^\d+$/.test(q)) {
       const amount = Number(q);
@@ -95,11 +98,25 @@ router.delete('/:id', async (req, res) => {
 
 router.post('/:id/visit', async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return missingPatient(res);
+  if (!mongoose.isValidObjectId(req.body.doctorId)) {
+    return res.status(400).json({ message: 'Choose the doctor for this visit' });
+  }
+  const doctor = await Doctor.findById(req.body.doctorId);
+  if (!doctor || doctor.active === false) {
+    return res.status(400).json({ message: 'Choose an active doctor' });
+  }
   const patient = await Patient.findByIdAndUpdate(
     req.params.id,
     {
       $inc: { visitCount: 1 },
-      $push: { visits: { visitedAt: new Date(), treatments: [] } },
+      $push: {
+        visits: {
+          visitedAt: new Date(),
+          doctor: doctor._id,
+          doctorName: doctor.name,
+          treatments: [],
+        },
+      },
     },
     { new: true }
   );
@@ -122,13 +139,46 @@ router.post('/:id/visit/undo', async (req, res) => {
   res.json(patient);
 });
 
+router.put('/:id/visit/clinical', async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return missingPatient(res);
+  const patient = await Patient.findById(req.params.id);
+  if (!patient) return missingPatient(res);
+  const visit = patient.visits[patient.visits.length - 1];
+  if (!visit) {
+    return res.status(400).json({ message: 'Check this patient in before recording symptoms' });
+  }
+  visit.symptoms = cleanText(req.body.symptoms, 500);
+  visit.diagnosis = cleanText(req.body.diagnosis, 300);
+  await patient.save();
+  res.json(patient);
+});
+
 router.post('/:id/treatments', async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return missingPatient(res);
-  if (!mongoose.isValidObjectId(req.body.medicineId)) {
-    return res.status(400).json({ message: 'Choose a medicine from the catalog' });
+  const rawItems = Array.isArray(req.body.items) && req.body.items.length
+    ? req.body.items
+    : [{ medicineId: req.body.medicineId, notes: req.body.notes, quantity: req.body.quantity }];
+  if (!rawItems.length || rawItems.length > 40) {
+    return res.status(400).json({ message: 'Add between 1 and 40 medicines' });
   }
-  const medicine = await Medicine.findById(req.body.medicineId);
-  if (!medicine) return res.status(400).json({ message: 'That medicine is no longer in the catalog' });
+
+  const prepared = [];
+  for (const item of rawItems) {
+    if (!mongoose.isValidObjectId(item?.medicineId)) {
+      return res.status(400).json({ message: 'Choose a medicine from the catalog' });
+    }
+    const medicine = await Medicine.findById(item.medicineId);
+    if (!medicine) return res.status(400).json({ message: 'That medicine is no longer in the catalog' });
+    prepared.push({
+      medicine: medicine._id,
+      medicineName: medicine.name,
+      strength: medicine.strength,
+      form: medicine.form,
+      notes: cleanText(item.notes, 400),
+      quantity: cleanText(item.quantity, 40),
+      recordedAt: new Date(),
+    });
+  }
 
   const patient = await Patient.findById(req.params.id);
   if (!patient) return missingPatient(res);
@@ -138,14 +188,7 @@ router.post('/:id/treatments', async (req, res) => {
   }
 
   const visit = patient.visits[patient.visits.length - 1];
-  visit.treatments.push({
-    medicine: medicine._id,
-    medicineName: medicine.name,
-    strength: medicine.strength,
-    form: medicine.form,
-    notes: cleanText(req.body.notes, 400),
-    recordedAt: new Date(),
-  });
+  visit.treatments.push(...prepared);
   await patient.save();
   res.json(patient);
 });

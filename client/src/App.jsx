@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
-import { treatmentLines } from './format';
+import { latestVisitField, treatmentLines } from './format';
 import { MedicineCatalog } from './components/MedicineCatalog';
+import { DoctorDirectory } from './components/DoctorDirectory';
 import { PatientChart } from './components/PatientChart';
 import { PatientForm } from './components/PatientForm';
 import { PatientTable } from './components/PatientTable';
@@ -9,6 +10,7 @@ import { PatientTable } from './components/PatientTable';
 function sortValue(patient, key) {
   if (key === 'allergies') return patient.allergies.join(', ');
   if (key === 'treatments') return treatmentLines(patient).join(', ');
+  if (key === 'symptoms' || key === 'diagnosis') return latestVisitField(patient, key);
   return patient[key] ?? '';
 }
 
@@ -16,7 +18,8 @@ export default function App() {
   const [section, setSection] = useState('patients');
   const [patients, setPatients] = useState([]);
   const [medicines, setMedicines] = useState([]);
-  const [stats, setStats] = useState({ patients: 0, visits: 0, medicines: 0 });
+  const [doctors, setDoctors] = useState([]);
+  const [stats, setStats] = useState({ patients: 0, visits: 0, medicines: 0, doctors: 0 });
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -47,6 +50,10 @@ export default function App() {
     setMedicines(rows);
   }, []);
 
+  const loadDoctors = useCallback(async () => {
+    setDoctors(await api.doctors());
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query.trim()), 250);
     return () => clearTimeout(timer);
@@ -74,11 +81,12 @@ export default function App() {
 
   useEffect(() => {
     let ignore = false;
-    Promise.all([api.stats(), api.medicines()])
-      .then(([nextStats, rows]) => {
+    Promise.all([api.stats(), api.medicines(), api.doctors()])
+      .then(([nextStats, rows, doctorRows]) => {
         if (ignore) return;
         setStats(nextStats);
         setMedicines(rows);
+        setDoctors(doctorRows);
       })
       .catch((err) => {
         if (!ignore) setError(err.message);
@@ -147,11 +155,27 @@ export default function App() {
     opening.current = true;
     setBusyId(patient._id);
     try {
-      const [updated, catalog] = await Promise.all([
-        api.recordVisit(patient._id),
+      const [full, catalog] = await Promise.all([
+        api.patient(patient._id),
         api.medicines().catch(() => null),
       ]);
       if (catalog) setMedicines(catalog);
+      syncPatient(full);
+      setSelected(full);
+    } catch (err) {
+      notify(err.message, 'danger');
+    } finally {
+      opening.current = false;
+      setBusyId('');
+    }
+  }
+
+  async function checkIn(patient, doctorId) {
+    if (opening.current) return;
+    opening.current = true;
+    setBusyId(patient._id);
+    try {
+      const updated = await api.recordVisit(patient._id, { doctorId });
       syncPatient(updated);
       setSelected(updated);
       await loadStats();
@@ -175,7 +199,7 @@ export default function App() {
       setQuery('');
       setDebouncedQuery('');
       setPatients(await api.patients(''));
-      notify('Patient chart created. Select the row when they arrive to record a visit.');
+      notify('Patient chart created. Open it when they arrive.');
     }
     await loadStats();
     setForm(null);
@@ -200,6 +224,11 @@ export default function App() {
     await loadStats();
   }
 
+  async function refreshDoctors() {
+    await loadDoctors();
+    await loadStats();
+  }
+
   const today = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
@@ -213,17 +242,20 @@ export default function App() {
           <div className="brand">
             <span className="mark" aria-hidden="true" />
             <div>
-              <p className="brand-name">Helio Practice</p>
+              <p className="brand-name">PharmaVision AR</p>
               <p className="brand-sub">Patient desk</p>
             </div>
           </div>
           <p className="today">{today}</p>
-          <nav className="nav" aria-label="Practice">
+          <nav className="nav" aria-label="PharmaVision AR">
             <button type="button" className={section === 'patients' ? 'is-on' : undefined} onClick={() => switchSection('patients')}>
               Patients
             </button>
             <button type="button" className={section === 'medicines' ? 'is-on' : undefined} onClick={() => switchSection('medicines')}>
               Medicines
+            </button>
+            <button type="button" className={section === 'doctors' ? 'is-on' : undefined} onClick={() => switchSection('doctors')}>
+              Doctors
             </button>
           </nav>
           <dl className="rail-stats">
@@ -239,8 +271,12 @@ export default function App() {
               <dt>Medicines</dt>
               <dd>{stats.medicines}</dd>
             </div>
+            <div>
+              <dt>Doctors</dt>
+              <dd>{stats.doctors}</dd>
+            </div>
           </dl>
-          <p className="rail-note">Selecting a patient records a visit and adds one to their visit count.</p>
+          <p className="rail-note">Open a patient to see only that chart. Check in when the visit starts.</p>
         </aside>
 
         <main className="stage">
@@ -250,59 +286,65 @@ export default function App() {
 
           {section === 'patients' ? (
             <section>
-              <header className="stage-head">
-                <div>
-                  <p className="kicker">Registry</p>
-                  <h1>Patients</h1>
-                </div>
-                <button type="button" className="solid" onClick={() => setForm({ mode: 'create' })}>
-                  Add patient
-                </button>
-              </header>
-              <div className="toolbar">
-                <label className="search">
-                  <span className="sr">Search patients</span>
-                  <input
-                    id="patient-search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search name, age, address, allergy, or treatment"
+              {selected ? (
+                <PatientChart
+                  patient={selected}
+                  medicines={medicines}
+                  doctors={doctors}
+                  onClose={() => setSelected(null)}
+                  onCheckIn={(doctorId) => checkIn(selected, doctorId)}
+                  onEdit={(patient) => setForm({ mode: 'edit', patient })}
+                  onUpdated={(updated) => {
+                    syncPatient(updated);
+                    loadStats().catch(() => {});
+                  }}
+                  onToast={notify}
+                />
+              ) : (
+                <>
+                  <header className="stage-head">
+                    <div>
+                      <p className="kicker">Registry</p>
+                      <h1>Patients</h1>
+                    </div>
+                    <button type="button" className="solid" onClick={() => setForm({ mode: 'create' })}>
+                      Add patient
+                    </button>
+                  </header>
+                  <div className="toolbar">
+                    <label className="search">
+                      <span className="sr">Search patients</span>
+                      <input
+                        id="patient-search"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="Search name, age, address, allergy, symptom, or diagnosis"
+                      />
+                    </label>
+                    <p className="count">{sortedPatients.length} shown</p>
+                  </div>
+                  <PatientTable
+                    patients={sortedPatients}
+                    loading={loading}
+                    query={debouncedQuery}
+                    sort={sort}
+                    onSort={changeSort}
+                    onOpen={openPatient}
+                    onEdit={(patient) => setForm({ mode: 'edit', patient })}
+                    onDelete={setPendingDelete}
+                    busyId={busyId}
+                    selectedId={selected?._id}
                   />
-                </label>
-                <p className="count">{sortedPatients.length} shown</p>
-              </div>
-              <PatientTable
-                patients={sortedPatients}
-                loading={loading}
-                query={debouncedQuery}
-                sort={sort}
-                onSort={changeSort}
-                onOpen={openPatient}
-                onEdit={(patient) => setForm({ mode: 'edit', patient })}
-                onDelete={setPendingDelete}
-                busyId={busyId}
-                selectedId={selected?._id}
-              />
+                </>
+              )}
             </section>
-          ) : (
+          ) : section === 'medicines' ? (
             <MedicineCatalog medicines={medicines} onRefresh={refreshCatalog} onToast={notify} />
+          ) : (
+            <DoctorDirectory doctors={doctors} onRefresh={refreshDoctors} onToast={notify} />
           )}
         </main>
       </div>
-
-      {selected ? (
-        <PatientChart
-          patient={selected}
-          medicines={medicines}
-          onClose={() => setSelected(null)}
-          onEdit={(patient) => setForm({ mode: 'edit', patient })}
-          onUpdated={(updated) => {
-            syncPatient(updated);
-            loadStats().catch(() => {});
-          }}
-          onToast={notify}
-        />
-      ) : null}
 
       {form ? (
         <PatientForm
